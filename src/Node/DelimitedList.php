@@ -11,7 +11,7 @@ use Microsoft\PhpParser\Token;
 use Microsoft\PhpParser\TokenKind;
 
 abstract class DelimitedList extends Node {
-    /** @var Token[]|Node[] */
+    /** @var Token[]|Node[]|null - The value is null for empty lists in some subclasses, e.g. ParameterDeclarationList */
     public $children;
 
     const CHILD_NAMES = [
