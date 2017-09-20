@@ -5,8 +5,9 @@ php:
   - 7.1
 
 env:
-  - VALIDATION=false
-  - VALIDATION=true
+  - TYPE=UNIT_TEST
+  - TYPE=VALIDATION
+  - TYPE=STATIC_ANALYSIS
 
 os:
   - linux
@@ -14,7 +15,8 @@ os:
 matrix:
   fast_finish: true
   allow_failures:
-    - env: VALIDATION=true
+    - env: TYPE=VALIDATION
+    - env: TYPE=STATIC_ANALYSIS
 
 cache:
   directories:
@@ -30,8 +32,12 @@ before_script:
 script:
   - composer validate
   - |
-    if [[ $VALIDATION = true ]]; then
+    if [[ $TYPE = VALIDATION ]]; then
       ./vendor/bin/phpunit --testsuite validation
+    elif [[ $TYPE = STATIC_ANALYSIS ]]; then
+      pecl install -f ast-0.1.5
+      composer require --dev etsy/phan=0.8.6
+      vendor/etsy/phan/phan --color
     else
       ./vendor/bin/phpunit --testsuite invariants
       ./vendor/bin/phpunit --testsuite grammar
