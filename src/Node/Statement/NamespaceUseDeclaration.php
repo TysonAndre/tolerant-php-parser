@@ -11,7 +11,7 @@ use Microsoft\PhpParser\Node\StatementNode;
 use Microsoft\PhpParser\Token;
 
 class NamespaceUseDeclaration extends StatementNode {
-    /** @var Token */
+    /** @var Token|null */
     public $useKeyword;
     /** @var Token */
     public $functionOrConst;
