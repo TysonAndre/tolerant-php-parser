@@ -147,7 +147,7 @@ class Parser {
         $this->reset();
 
         $sourceFile = new SourceFileNode();
-        $this->sourceFile = & $sourceFile;
+        $this->sourceFile = $sourceFile;
         $sourceFile->fileContents = $fileContents;
         $sourceFile->uri = $uri;
         $sourceFile->statementList = array();
@@ -400,6 +400,19 @@ class Parser {
         return null;
     }
 
+    /**
+     * @param int $kind a single kind
+     * @return Token|null
+     */
+    private function eatOptional1($kind) {
+        $token = $this->token;
+        if ($token->kind === $kind) {
+            $this->token = $this->lexer->scanNextToken();
+            return $token;
+        }
+        return null;
+    }
+
     private $token;
 
     private function getCurrentToken() : Token {
@@ -601,14 +614,14 @@ class Parser {
         return function ($parentNode) {
             $parameter = new Parameter();
             $parameter->parent = $parentNode;
-            $parameter->questionToken = $this->eatOptional(TokenKind::QuestionToken);
+            $parameter->questionToken = $this->eatOptional1(TokenKind::QuestionToken);
             $parameter->typeDeclaration = $this->tryParseParameterTypeDeclaration($parameter);
-            $parameter->byRefToken = $this->eatOptional(TokenKind::AmpersandToken);
+            $parameter->byRefToken = $this->eatOptional1(TokenKind::AmpersandToken);
             // TODO add post-parse rule that prevents assignment
             // TODO add post-parse rule that requires only last parameter be variadic
-            $parameter->dotDotDotToken = $this->eatOptional(TokenKind::DotDotDotToken);
+            $parameter->dotDotDotToken = $this->eatOptional1(TokenKind::DotDotDotToken);
             $parameter->variableName = $this->eat(TokenKind::VariableName);
-            $parameter->equalsToken = $this->eatOptional(TokenKind::EqualsToken);
+            $parameter->equalsToken = $this->eatOptional1(TokenKind::EqualsToken);
             if ($parameter->equalsToken !== null) {
                 // TODO add post-parse rule that checks for invalid assignments
                 $parameter->default = $this->parseExpression($parameter);
@@ -1204,7 +1217,7 @@ class Parser {
             $node->parent = $parentNode;
             $node->relativeSpecifier = $this->parseRelativeSpecifier($node);
             if (!isset($node->relativeSpecifier)) {
-                $node->globalSpecifier = $this->eatOptional(TokenKind::BackslashToken);
+                $node->globalSpecifier = $this->eatOptional1(TokenKind::BackslashToken);
             }
 
             $nameParts =
@@ -1243,7 +1256,7 @@ class Parser {
     private function parseRelativeSpecifier($parentNode) {
         $node = new RelativeSpecifier();
         $node->parent = $parentNode;
-        $node->namespaceKeyword = $this->eatOptional(TokenKind::NamespaceKeyword);
+        $node->namespaceKeyword = $this->eatOptional1(TokenKind::NamespaceKeyword);
         if ($node->namespaceKeyword !== null) {
             $node->backslash = $this->eat(TokenKind::BackslashToken);
         }
@@ -1255,7 +1268,7 @@ class Parser {
 
     private function parseFunctionType(Node $functionDeclaration, $canBeAbstract = false, $isAnonymous = false) {
         $functionDeclaration->functionKeyword = $this->eat(TokenKind::FunctionKeyword);
-        $functionDeclaration->byRefToken = $this->eatOptional(TokenKind::AmpersandToken);
+        $functionDeclaration->byRefToken = $this->eatOptional1(TokenKind::AmpersandToken);
         $functionDeclaration->name = $isAnonymous
             ? $this->eatOptional($this->nameOrKeywordOrReservedWordTokens)
             : $this->eat($this->nameOrKeywordOrReservedWordTokens);
@@ -1283,12 +1296,12 @@ class Parser {
 
         if ($this->checkToken(TokenKind::ColonToken)) {
             $functionDeclaration->colonToken = $this->eat(TokenKind::ColonToken);
-            $functionDeclaration->questionToken = $this->eatOptional(TokenKind::QuestionToken);
+            $functionDeclaration->questionToken = $this->eatOptional1(TokenKind::QuestionToken);
             $functionDeclaration->returnType = $this->parseReturnTypeDeclaration($functionDeclaration);
         }
 
         if ($canBeAbstract) {
-            $functionDeclaration->compoundStatementOrSemicolon = $this->eatOptional(TokenKind::SemicolonToken);
+            $functionDeclaration->compoundStatementOrSemicolon = $this->eatOptional1(TokenKind::SemicolonToken);
         }
 
         if (!isset($functionDeclaration->compoundStatementOrSemicolon)) {
@@ -1359,7 +1372,7 @@ class Parser {
             $ifStatement->elseClause = $this->parseElseClause($ifStatement);
         }
 
-        $ifStatement->endifKeyword = $this->eatOptional(TokenKind::EndIfKeyword);
+        $ifStatement->endifKeyword = $this->eatOptional1(TokenKind::EndIfKeyword);
         if ($ifStatement->endifKeyword) {
             $ifStatement->semicolon = $this->eatSemicolonOrAbortStatement();
         }
@@ -1403,8 +1416,8 @@ class Parser {
         $switchStatement->openParen = $this->eat(TokenKind::OpenParenToken);
         $switchStatement->expression = $this->parseExpression($switchStatement);
         $switchStatement->closeParen = $this->eat(TokenKind::CloseParenToken);
-        $switchStatement->openBrace = $this->eatOptional(TokenKind::OpenBraceToken);
-        $switchStatement->colon = $this->eatOptional(TokenKind::ColonToken);
+        $switchStatement->openBrace = $this->eatOptional1(TokenKind::OpenBraceToken);
+        $switchStatement->colon = $this->eatOptional1(TokenKind::ColonToken);
         $switchStatement->caseStatements = $this->parseList($switchStatement, ParseContext::SwitchStatementElements);
         if ($switchStatement->colon !== null) {
             $switchStatement->endswitch = $this->eat(TokenKind::EndSwitchKeyword);
@@ -1438,7 +1451,7 @@ class Parser {
         $whileStatement->openParen = $this->eat(TokenKind::OpenParenToken);
         $whileStatement->expression = $this->parseExpression($whileStatement);
         $whileStatement->closeParen = $this->eat(TokenKind::CloseParenToken);
-        $whileStatement->colon = $this->eatOptional(TokenKind::ColonToken);
+        $whileStatement->colon = $this->eatOptional1(TokenKind::ColonToken);
         if ($whileStatement->colon !== null) {
             $whileStatement->statements = $this->parseList($whileStatement, ParseContext::WhileStatementElements);
             $whileStatement->endWhile = $this->eat(TokenKind::EndWhileKeyword);
@@ -1627,7 +1640,7 @@ class Parser {
             $this->advanceToken();
 
             if ($token->kind === TokenKind::EqualsToken) {
-                $byRefToken = $this->eatOptional(TokenKind::AmpersandToken);
+                $byRefToken = $this->eatOptional1(TokenKind::AmpersandToken);
             }
 
             $leftOperand = $token->kind === TokenKind::QuestionToken ?
@@ -1789,7 +1802,7 @@ class Parser {
         $forStatement->exprGroupSemicolon2 = $this->eat(TokenKind::SemicolonToken);
         $forStatement->forEndOfLoop = $this->parseExpressionList($forStatement);
         $forStatement->closeParen = $this->eat(TokenKind::CloseParenToken);
-        $forStatement->colon = $this->eatOptional(TokenKind::ColonToken);
+        $forStatement->colon = $this->eatOptional1(TokenKind::ColonToken);
         if ($forStatement->colon !== null) {
             $forStatement->statements = $this->parseList($forStatement, ParseContext::ForStatementElements);
             $forStatement->endFor = $this->eat(TokenKind::EndForKeyword);
@@ -1810,7 +1823,7 @@ class Parser {
         $foreachStatement->foreachKey = $this->tryParseForeachKey($foreachStatement);
         $foreachStatement->foreachValue = $this->parseForeachValue($foreachStatement);
         $foreachStatement->closeParen = $this->eat(TokenKind::CloseParenToken);
-        $foreachStatement->colon = $this->eatOptional(TokenKind::ColonToken);
+        $foreachStatement->colon = $this->eatOptional1(TokenKind::ColonToken);
         if ($foreachStatement->colon !== null) {
             $foreachStatement->statements = $this->parseList($foreachStatement, ParseContext::ForeachStatementElements);
             $foreachStatement->endForeach = $this->eat(TokenKind::EndForEachKeyword);
@@ -1845,7 +1858,7 @@ class Parser {
     private function parseForeachValue($parentNode) {
         $foreachValue = new ForeachValue();
         $foreachValue->parent = $parentNode;
-        $foreachValue->ampersand = $this->eatOptional(TokenKind::AmpersandToken);
+        $foreachValue->ampersand = $this->eatOptional1(TokenKind::AmpersandToken);
         $foreachValue->expression = $this->parseExpression($foreachValue);
         return $foreachValue;
     }
@@ -2095,7 +2108,7 @@ class Parser {
                 if ($this->checkToken(TokenKind::DoubleArrowToken)) {
                     $arrayElement->elementKey = $expression;
                     $arrayElement->arrowToken = $this->eat(TokenKind::DoubleArrowToken);
-                    $arrayElement->byRef = $this->eatOptional(TokenKind::AmpersandToken); // TODO not okay for list expressions
+                    $arrayElement->byRef = $this->eatOptional1(TokenKind::AmpersandToken); // TODO not okay for list expressions
                     $arrayElement->elementValue = $this->parseExpression($arrayElement);
                 } else {
                     $arrayElement->elementValue = $expression;
@@ -2132,7 +2145,7 @@ class Parser {
         $arrayExpression = new ArrayCreationExpression();
         $arrayExpression->parent = $parentNode;
 
-        $arrayExpression->arrayKeyword = $this->eatOptional(TokenKind::ArrayKeyword);
+        $arrayExpression->arrayKeyword = $this->eatOptional1(TokenKind::ArrayKeyword);
 
         $arrayExpression->openParenOrBracket = $arrayExpression->arrayKeyword !== null
             ? $this->eat(TokenKind::OpenParenToken)
@@ -2198,7 +2211,7 @@ class Parser {
         $exitExpression->parent = $parentNode;
 
         $exitExpression->exitOrDieKeyword = $this->eat(TokenKind::ExitKeyword, TokenKind::DieKeyword);
-        $exitExpression->openParen = $this->eatOptional(TokenKind::OpenParenToken);
+        $exitExpression->openParen = $this->eatOptional1(TokenKind::OpenParenToken);
         if ($exitExpression->openParen !== null) {
             if ($this->isExpressionStart($this->getCurrentToken())) {
                 $exitExpression->expression = $this->parseExpression($exitExpression);
@@ -2360,8 +2373,8 @@ class Parser {
         return function ($parentNode) {
             $argumentExpression = new ArgumentExpression();
             $argumentExpression->parent = $parentNode;
-            $argumentExpression->byRefToken = $this->eatOptional(TokenKind::AmpersandToken);
-            $argumentExpression->dotDotDotToken = $this->eatOptional(TokenKind::DotDotDotToken);
+            $argumentExpression->byRefToken = $this->eatOptional1(TokenKind::AmpersandToken);
+            $argumentExpression->dotDotDotToken = $this->eatOptional1(TokenKind::DotDotDotToken);
             $argumentExpression->expression = $this->parseExpression($argumentExpression);
             return $argumentExpression;
         };
@@ -2453,13 +2466,13 @@ class Parser {
         // TODO - add tests for this scenario
         $this->isParsingObjectCreationExpression = true;
         $objectCreationExpression->classTypeDesignator =
-            $this->eatOptional(TokenKind::ClassKeyword) ??
-            $this->eatOptional(TokenKind::StaticKeyword) ??
+            $this->eatOptional1(TokenKind::ClassKeyword) ??
+            $this->eatOptional1(TokenKind::StaticKeyword) ??
             $this->parseExpression($objectCreationExpression);
 
         $this->isParsingObjectCreationExpression = false;
 
-        $objectCreationExpression->openParen = $this->eatOptional(TokenKind::OpenParenToken);
+        $objectCreationExpression->openParen = $this->eatOptional1(TokenKind::OpenParenToken);
         if ($objectCreationExpression->openParen !== null) {
             $objectCreationExpression->argumentExpressionList = $this->parseArgumentExpressionList($objectCreationExpression);
             $objectCreationExpression->closeParen = $this->eat(TokenKind::CloseParenToken);
@@ -2501,7 +2514,7 @@ class Parser {
     private function parseClassInterfaceClause($parentNode) {
         $classInterfaceClause = new ClassInterfaceClause();
         $classInterfaceClause->parent = $parentNode;
-        $classInterfaceClause->implementsKeyword = $this->eatOptional(TokenKind::ImplementsKeyword);
+        $classInterfaceClause->implementsKeyword = $this->eatOptional1(TokenKind::ImplementsKeyword);
 
         if ($classInterfaceClause->implementsKeyword === null) {
             return null;
@@ -2516,7 +2529,7 @@ class Parser {
         $classBaseClause = new ClassBaseClause();
         $classBaseClause->parent = $parentNode;
 
-        $classBaseClause->extendsKeyword = $this->eatOptional(TokenKind::ExtendsKeyword);
+        $classBaseClause->extendsKeyword = $this->eatOptional1(TokenKind::ExtendsKeyword);
         if ($classBaseClause->extendsKeyword === null) {
             return null;
         }
@@ -2623,7 +2636,7 @@ class Parser {
         $interfaceBaseClause = new InterfaceBaseClause();
         $interfaceBaseClause->parent = $parentNode;
 
-        $interfaceBaseClause->extendsKeyword = $this->eatOptional(TokenKind::ExtendsKeyword);
+        $interfaceBaseClause->extendsKeyword = $this->eatOptional1(TokenKind::ExtendsKeyword);
         if (isset($interfaceBaseClause->extendsKeyword)) {
             $interfaceBaseClause->interfaceNameList = $this->parseQualifiedNameList($interfaceBaseClause);
         } else {
@@ -2890,7 +2903,7 @@ class Parser {
             $staticVariableDeclaration = new StaticVariableDeclaration();
             $staticVariableDeclaration->parent = $parentNode;
             $staticVariableDeclaration->variableName = $this->eat(TokenKind::VariableName);
-            $staticVariableDeclaration->equalsToken = $this->eatOptional(TokenKind::EqualsToken);
+            $staticVariableDeclaration->equalsToken = $this->eatOptional1(TokenKind::EqualsToken);
             if ($staticVariableDeclaration->equalsToken !== null) {
                 // TODO add post-parse rule that checks for invalid assignments
                 $staticVariableDeclaration->assignment = $this->parseExpression($staticVariableDeclaration);
@@ -2983,7 +2996,7 @@ class Parser {
         $anonymousFunctionCreationExpression = new AnonymousFunctionCreationExpression();
         $anonymousFunctionCreationExpression->parent = $parentNode;
 
-        $anonymousFunctionCreationExpression->staticModifier = $this->eatOptional(TokenKind::StaticKeyword);
+        $anonymousFunctionCreationExpression->staticModifier = $this->eatOptional1(TokenKind::StaticKeyword);
         $this->parseFunctionType($anonymousFunctionCreationExpression, false, true);
 
         return $anonymousFunctionCreationExpression;
@@ -2993,7 +3006,7 @@ class Parser {
         $anonymousFunctionUseClause = new AnonymousFunctionUseClause();
         $anonymousFunctionUseClause->parent = $parentNode;
 
-        $anonymousFunctionUseClause->useKeyword = $this->eatOptional(TokenKind::UseKeyword);
+        $anonymousFunctionUseClause->useKeyword = $this->eatOptional1(TokenKind::UseKeyword);
         if ($anonymousFunctionUseClause->useKeyword === null) {
             return null;
         }
@@ -3007,7 +3020,7 @@ class Parser {
             function ($parentNode) {
                 $useVariableName = new UseVariableName();
                 $useVariableName->parent = $parentNode;
-                $useVariableName->byRef = $this->eatOptional(TokenKind::AmpersandToken);
+                $useVariableName->byRef = $this->eatOptional1(TokenKind::AmpersandToken);
                 $useVariableName->variableName = $this->eat(TokenKind::VariableName);
                 return $useVariableName;
             },
@@ -3038,9 +3051,9 @@ class Parser {
     private function parseInlineHtml($parentNode) {
         $inlineHtml = new InlineHtml();
         $inlineHtml->parent = $parentNode;
-        $inlineHtml->scriptSectionEndTag = $this->eatOptional(TokenKind::ScriptSectionEndTag);
-        $inlineHtml->text = $this->eatOptional(TokenKind::InlineHtml);
-        $inlineHtml->scriptSectionStartTag = $this->eatOptional(TokenKind::ScriptSectionStartTag);
+        $inlineHtml->scriptSectionEndTag = $this->eatOptional1(TokenKind::ScriptSectionEndTag);
+        $inlineHtml->text = $this->eatOptional1(TokenKind::InlineHtml);
+        $inlineHtml->scriptSectionStartTag = $this->eatOptional1(TokenKind::ScriptSectionStartTag);
 
         return $inlineHtml;
     }
