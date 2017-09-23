@@ -18,7 +18,7 @@ class ArrayCreationExpression extends Expression {
     /** @var Token */
     public $openParenOrBracket;
 
-    /** @var DelimitedList\ArrayElementList */
+    /** @var DelimitedList\ArrayElementList|null */
     public $arrayElements;
 
     /** @var Token */

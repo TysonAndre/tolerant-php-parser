@@ -17,7 +17,7 @@ class ForeachStatement extends StatementNode {
     public $foreach;
     /** @var Token */
     public $openParen;
-    /** @var Expression */
+    /** @var Expression FIXME inconsistent */
     public $forEachCollectionName;
     /** @var Token */
     public $asKeyword;
