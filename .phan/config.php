@@ -24,7 +24,7 @@ use \Phan\Issue;
  * of the phan executable or a path passed in via the CLI
  * '-d' flag.
  */
-return [
+$config = [
 
     // If true, missing properties will be created when
     // they are first seen. If false, we'll report an
@@ -232,12 +232,11 @@ return [
         'DuplicateArrayKeyPlugin',
         'PregRegexCheckerPlugin',
         'PrintfCheckerPlugin',
-        // NOTE: src/Phan/Language/Internal/FunctionSignatureMap.php mixes value without key as return type with values having keys deliberately.
-        // '.phan/plugins/DuplicateArrayKeyPlugin.php',
-
-        // NOTE: This plugin only produces correct results when
-        //       Phan is run on a single core (-j1).
-        // '.phan/plugins/UnusedSuppressionPlugin.php',
     ],
 
 ];
+$unusedVariablePlugin = __DIR__ . '/../../PhanUnusedVariable/src/UnusedVariablePlugin.php';
+//if (file_exists($unusedVariablePlugin)) {
+    $config['plugins'][] = $unusedVariablePlugin;
+//}
+return $config;
