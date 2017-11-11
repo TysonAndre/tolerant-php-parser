@@ -224,9 +224,14 @@ return [
 
     // A list of plugin files to execute
     'plugins' => [
-        'vendor/etsy/phan/.phan/plugins/AlwaysReturnPlugin.php',
-        'vendor/etsy/phan/.phan/plugins/DollarDollarPlugin.php',
-        'vendor/etsy/phan/.phan/plugins/DuplicateArrayKeyPlugin.php',
+        'AlwaysReturnPlugin',
+        'DemoPlugin',
+        'DollarDollarPlugin',
+        'UnreachableCodePlugin',
+        // NOTE: src/Phan/Language/Internal/FunctionSignatureMap.php mixes value without keys (as return type) with values having keys deliberately.
+        'DuplicateArrayKeyPlugin',
+        'PregRegexCheckerPlugin',
+        'PrintfCheckerPlugin',
         // NOTE: src/Phan/Language/Internal/FunctionSignatureMap.php mixes value without key as return type with values having keys deliberately.
         // '.phan/plugins/DuplicateArrayKeyPlugin.php',
 
