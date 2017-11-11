@@ -397,6 +397,26 @@ class Parser {
     }
 
     /**
+     * Retrieve the current token, and check that it's of the kind $kind.
+     * If so, advance and return the token. Otherwise return a MissingToken for
+     * the expected token.
+     *
+     * This is faster than calling eat() if there is a single token.
+     *
+     * @param int $kind
+     * @return Token
+     */
+    private function eat1($kind) {
+        $token = $this->token;
+        if ($token->kind === $kind) {
+            $this->token = $this->lexer->scanNextToken();
+            return $token;
+        }
+        // TODO include optional grouping for token kinds
+        return new MissingToken($kind, $token->fullStart);
+    }
+
+    /**
      * @param int|int[] ...$kinds (Can provide a single value with a list of kinds, or multiple kinds)
      * @return Token|null
      */
