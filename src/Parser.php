@@ -1025,8 +1025,6 @@ class Parser {
                     continue;
             }
         }
-
-        return $expression;
     }
 
     /**
