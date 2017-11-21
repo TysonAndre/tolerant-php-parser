@@ -158,14 +158,62 @@ abstract class Node implements \JsonSerializable {
     public function getDescendantNodesAndTokens(callable $shouldDescendIntoChildrenFn = null) {
         // TODO - write unit tests to prove invariants
         // (concatenating all descendant Tokens should produce document, concatenating all Nodes should produce document)
-        foreach ($this->getChildNodesAndTokens() as $child) {
-            if ($child instanceof Node) {
+        foreach (static::CHILD_NAMES as $name) {
+            $child = $this->$name;
+            // Check possible types of $child, most frequent first
+            if ($child instanceof Token) {
                 yield $child;
-                if ($shouldDescendIntoChildrenFn == null || $shouldDescendIntoChildrenFn($child)) {
-                    yield from $child->getDescendantNodesAndTokens($shouldDescendIntoChildrenFn);
+            } elseif ($child instanceof Node) {
+                yield $child;
+                if ($shouldDescendIntoChildrenFn === null || $shouldDescendIntoChildrenFn($child)) {
+                   yield from $child->getDescendantNodesAndTokens($shouldDescendIntoChildrenFn);
                 }
-            } elseif ($child instanceof Token) {
-                yield $child;
+            } elseif (\is_array($child)) {
+                foreach ($child as $childElement) {
+                    if ($childElement instanceof Token) {
+                        yield $childElement;
+                    } elseif ($childElement instanceof Node) {
+                        yield $childElement;
+                        if ($shouldDescendIntoChildrenFn === null || $shouldDescendIntoChildrenFn($childElement)) {
+                           yield from $childElement->getDescendantNodesAndTokens($shouldDescendIntoChildrenFn);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Iterate over all descendant Nodes and Tokens, calling $callback
+     *
+     * @param callable $callback a callback that accepts Node|Token
+     * @param callable|null $shouldDescendIntoChildrenFn
+     * @return void
+     */
+    public function walkDescendantNodesAndTokens(\Closure $callback, callable $shouldDescendIntoChildrenFn = null) {
+        // TODO - write unit tests to prove invariants
+        // (concatenating all descendant Tokens should produce document, concatenating all Nodes should produce document)
+        foreach (static::CHILD_NAMES as $name) {
+            $child = $this->$name;
+            // Check possible types of $child, most frequent first
+            if ($child instanceof Token) {
+                $callback($child);
+            } elseif ($child instanceof Node) {
+                $callback($child);
+                if ($shouldDescendIntoChildrenFn === null || $shouldDescendIntoChildrenFn($child)) {
+                   $child->walkDescendantNodesAndTokens($callback, $shouldDescendIntoChildrenFn);
+                }
+            } elseif (\is_array($child)) {
+                foreach ($child as $childElement) {
+                    if ($childElement instanceof Token) {
+                        $callback($childElement);
+                    } elseif ($childElement instanceof Node) {
+                        $callback($childElement);
+                        if ($shouldDescendIntoChildrenFn === null || $shouldDescendIntoChildrenFn($childElement)) {
+                           $childElement->walkDescendantNodesAndTokens($callback, $shouldDescendIntoChildrenFn);
+                        }
+                    }
+                }
             }
         }
     }
@@ -639,5 +687,14 @@ abstract class Node implements \JsonSerializable {
             return array($namespaceImportTable, $functionImportTable, $constImportTable);
         }
         return array($namespaceImportTable, $functionImportTable, $constImportTable);
+    }
+
+    /**
+     * This is overridden in subclasses
+     * @return Diagnostic|null - Callers should use DiagnosticsProvider::getDiagnostics instead
+     * @internal
+     */
+    public function getDiagnosticForNode() {
+        return null;
     }
 }

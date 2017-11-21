@@ -1,1 +1,8 @@
-[]
+[
+    {
+        "kind": 0,
+        "message": "';' expected.",
+        "start": 6,
+        "length": 0
+    }
+]
