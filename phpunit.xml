@@ -20,21 +20,8 @@
       <file>tests/ParserGrammarTest.php</file>
     </testsuite>
 
-    <testsuite name="validation">
-      <!--
-      Validates against real-world scenarios.
-      * INPUT: All files in `validation/frameworks/<framework-name>/*`
-      * OUTPUT: Failing tests are output to `tests/output/<framework-name>`
-      -->
-      <file>tests/ParserFrameworkValidationTests.php</file>
-    </testsuite>
-
     <testsuite name="api">
-      <file>tests/api/NodeApiTest.php</file>
-      <file>tests/api/getNodeAtPosition.php</file>
-      <file>tests/api/getResolvedName.php</file>
-      <file>tests/api/PositionUtilitiesTest.php</file>
-      <file>tests/api/TextEditTest.php</file>
+
     </testsuite>
 
     <testsuite name="performance">

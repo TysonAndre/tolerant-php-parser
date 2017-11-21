@@ -17,21 +17,23 @@ foreach (new RecursiveIteratorIterator($directoryIterator) as $file) {
     }
 }
 
-$asts = [];
-$parser = new \Microsoft\PhpParser\Parser();
-
 $startMemory = memory_get_peak_usage(true);
 $startTime = microtime(true);
 
-foreach ($testProviderArray as $idx=>$testCaseFile) {
-    $sourceFile = $parser->parseSourceFile($testCaseFile);
-    $asts[] = $sourceFile;
+for ($i = 0; $i < 10; $i++) {
+    $asts = [];
+    $parser = new \Microsoft\PhpParser\Parser();
 
-    if ($idx % 10 === 0) {
-        echo $idx;
-    }
-    if ($idx > 100) {
-        break;
+    foreach ($testProviderArray as $idx=>$testCaseFile) {
+        $sourceFile = $parser->parseSourceFile($testCaseFile);
+        $asts[] = $sourceFile;
+
+        if ($idx % 10 === 0) {
+            echo $idx;
+        }
+        if ($idx > 100) {
+            break;
+        }
     }
 }
 
