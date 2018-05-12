@@ -1686,8 +1686,35 @@ class Parser {
             //
             // After we finish building the BinaryExpression, we rebuild the UnaryExpression so that it includes
             // the original operator, and the newly constructed exponentiation-expression as the operand.
-            $shouldOperatorTakePrecedenceOverUnary =
-                $token->kind === TokenKind::AsteriskAsteriskToken && $leftOperand instanceof UnaryExpression;
+            $shouldOperatorTakePrecedenceOverUnary = false;
+            switch ($token->kind) {
+                case TokenKind::AsteriskAsteriskToken:
+                    $shouldOperatorTakePrecedenceOverUnary = $leftOperand instanceof UnaryExpression;
+                    break;
+                case TokenKind::EqualsToken:
+                case TokenKind::AsteriskAsteriskEqualsToken:
+                case TokenKind::AsteriskEqualsToken:
+                case TokenKind::SlashEqualsToken:
+                case TokenKind::PercentEqualsToken:
+                case TokenKind::PlusEqualsToken:
+                case TokenKind::MinusEqualsToken:
+                case TokenKind::DotEqualsToken:
+                case TokenKind::LessThanLessThanEqualsToken:
+                case TokenKind::GreaterThanGreaterThanEqualsToken:
+                case TokenKind::AmpersandEqualsToken:
+                case TokenKind::CaretEqualsToken:
+                case TokenKind::BarEqualsToken:
+                case TokenKind::InstanceOfKeyword:
+                    // Workarounds for https://github.com/Microsoft/tolerant-php-parser/issues/19#issue-201714377
+                    // Parse `!$a = $b` as `!($a = $b)` - PHP constrains the Left Hand Side of an assignment to a variable. A unary operator (`@`, `!`, etc.) is not a variable.
+                    // Instanceof has similar constraints for the LHS.
+                    // So does `!$a += $b`
+                    // TODO: Any other operators?
+                    if ($leftOperand instanceof UnaryOpExpression) {
+                        $shouldOperatorTakePrecedenceOverUnary = true;
+                    }
+                    break;
+            }
 
             if ($shouldOperatorTakePrecedenceOverUnary) {
                 $unaryExpression = $leftOperand;
@@ -2097,7 +2124,23 @@ class Parser {
             TokenKind::YieldFromKeyword,
             TokenKind::YieldKeyword
             );
-        $yieldExpression->arrayElement = $this->parseArrayElement($yieldExpression);
+        if ($yieldExpression->yieldOrYieldFromKeyword->kind === TokenKind::YieldFromKeyword) {
+            // Don't use parseArrayElement. E.g. `yield from &$varName` or `yield from $key => $varName` are both syntax errors
+            $arrayElement = new ArrayElement();
+            $arrayElement->parent = $yieldExpression;
+            $arrayElement->elementValue = $this->parseExpression($arrayElement);
+            $yieldExpression->arrayElement = $arrayElement;
+        } else {
+            // This is always an ArrayElement for backwards compatibilitiy.
+            // TODO: Can this be changed to a non-ArrayElement in a future release?
+            if ($this->isExpressionStart($this->getCurrentToken())) {
+                // Both `yield expr;` and `yield;` are possible.
+                $yieldExpression->arrayElement = $this->parseArrayElement($yieldExpression);
+            } else {
+                $yieldExpression->arrayElement = null;
+            }
+        }
+
         return $yieldExpression;
     }
 
