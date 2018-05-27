@@ -674,12 +674,6 @@ class Parser {
         return $compoundStatement;
     }
 
-    private function array_push_list(& $array, $list) {
-        foreach ($list as $item) {
-            $array[] = $item;
-        }
-    }
-
     private function isClassMemberDeclarationStart(Token $token) {
         switch ($token->kind) {
             // const-modifier

@@ -63,6 +63,8 @@ $config = [
     // to make sense of.
     'dead_code_detection' => false,
 
+    'unused_variable_detection' => true,
+
     // Run a quick version of checks that takes less
     // time
     "quick_mode" => false,
@@ -235,8 +237,4 @@ $config = [
     ],
 
 ];
-$unusedVariablePlugin = __DIR__ . '/../../PhanUnusedVariable/src/UnusedVariablePlugin.php';
-//if (file_exists($unusedVariablePlugin)) {
-    $config['plugins'][] = $unusedVariablePlugin;
-//}
 return $config;
