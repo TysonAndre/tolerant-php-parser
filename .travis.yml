@@ -36,9 +36,9 @@ script:
     if [[ $TYPE = VALIDATION ]]; then
       ./vendor/bin/phpunit --testsuite validation
     elif [[ $TYPE = STATIC_ANALYSIS ]]; then
-      pecl install -f ast-0.1.5
-      composer require --dev etsy/phan=0.8.6
-      vendor/etsy/phan/phan --color
+      pecl install -f ast-0.1.6
+      composer require --dev phan/phan=dev-master
+      vendor/bin/phan --color
     else
       ./vendor/bin/phpunit --testsuite invariants
       ./vendor/bin/phpunit --testsuite grammar
