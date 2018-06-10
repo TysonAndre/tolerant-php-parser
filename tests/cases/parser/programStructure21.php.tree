@@ -4,11 +4,70 @@
             {
                 "InlineHtml": {
                     "scriptSectionEndTag": null,
-                    "text": {
-                        "kind": "InlineHtml",
+                    "text": null,
+                    "scriptSectionStartTag": {
+                        "kind": "ScriptSectionStartTag",
                         "textLength": 6
+                    }
+                }
+            },
+            {
+                "ExpressionStatement": {
+                    "expression": {
+                        "AssignmentExpression": {
+                            "leftOperand": {
+                                "Variable": {
+                                    "dollar": null,
+                                    "name": {
+                                        "kind": "VariableName",
+                                        "textLength": 2
+                                    }
+                                }
+                            },
+                            "operator": {
+                                "kind": "EqualsToken",
+                                "textLength": 1
+                            },
+                            "byRef": null,
+                            "rightOperand": {
+                                "StringLiteral": {
+                                    "startQuote": {
+                                        "kind": "HeredocStart",
+                                        "textLength": 7
+                                    },
+                                    "children": [
+                                        {
+                                            "kind": "EncapsedAndWhitespace",
+                                            "textLength": 49
+                                        },
+                                        {
+                                            "Variable": {
+                                                "dollar": null,
+                                                "name": {
+                                                    "kind": "VariableName",
+                                                    "textLength": 2
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "kind": "EncapsedAndWhitespace",
+                                            "textLength": 1
+                                        }
+                                    ],
+                                    "endQuote": {
+                                        "error": "MissingToken",
+                                        "kind": "HeredocStart",
+                                        "textLength": 0
+                                    }
+                                }
+                            }
+                        }
                     },
-                    "scriptSectionStartTag": null
+                    "semicolon": {
+                        "error": "MissingToken",
+                        "kind": "SemicolonToken",
+                        "textLength": 0
+                    }
                 }
             }
         ],

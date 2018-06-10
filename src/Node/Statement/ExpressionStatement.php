@@ -11,7 +11,11 @@ use Microsoft\PhpParser\Node\StatementNode;
 use Microsoft\PhpParser\Token;
 
 class ExpressionStatement extends StatementNode {
-    /** @var Expression */
+    /**
+     * @var Expression|MissingToken|array
+     * The expression, or a missing token,
+     * or an array containing a missed and skipped token
+     */
     public $expression;
     /** @var Token */
     public $semicolon;

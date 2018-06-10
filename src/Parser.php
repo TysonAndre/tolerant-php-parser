@@ -1516,7 +1516,7 @@ class Parser {
     /**
      * @param Node $parentNode
      * @param bool $force
-     * @return Node|MissingToken|array - The expression, or a missing token, or (if $force) an array containing a missed and skipped token
+     * @return Expression|MissingToken|array - The expression, or a missing token, or (if $force) an array containing a missed and skipped token
      */
     private function parseExpression($parentNode, $force = false) {
         $token = $this->getCurrentToken();

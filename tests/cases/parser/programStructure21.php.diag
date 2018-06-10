@@ -1,1 +1,14 @@
-[]
+[
+    {
+        "kind": 0,
+        "message": "'HeredocStart' expected.",
+        "start": 70,
+        "length": 0
+    },
+    {
+        "kind": 0,
+        "message": "';' expected.",
+        "start": 70,
+        "length": 0
+    }
+]
