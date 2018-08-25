@@ -14,6 +14,9 @@ os:
   - linux
 
 matrix:
+  include:
+    - php: 7.2
+      env: STATIC_ANALYSIS=true
   fast_finish: true
   allow_failures:
     - env: TYPE=VALIDATION
@@ -24,6 +27,7 @@ cache:
     - validation/frameworks
 
 before_script:
+  - if [[ $STATIC_ANALYSIS = true ]]; then composer require phpstan/phpstan --no-update; fi
   - composer install
   - set -e # Stop on first error.
   - phpenv config-rm xdebug.ini
@@ -32,6 +36,7 @@ before_script:
 
 script:
   - composer validate
+  - if [[ $STATIC_ANALYSIS = true ]]; then ./vendor/bin/phpstan analyse src --level=2; fi
   - |
     if [[ $TYPE = VALIDATION ]]; then
       ./vendor/bin/phpunit --testsuite validation

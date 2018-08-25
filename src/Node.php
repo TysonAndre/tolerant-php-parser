@@ -13,6 +13,8 @@ use Microsoft\PhpParser\Node\Statement\NamespaceDefinition;
 use Microsoft\PhpParser\Node\Statement\NamespaceUseDeclaration;
 
 abstract class Node implements \JsonSerializable {
+    const CHILD_NAMES = [];
+
     /** @var Node|null */
     public $parent;
 
@@ -43,23 +45,29 @@ abstract class Node implements \JsonSerializable {
      */
     public function getFullStart() : int {
         foreach($this::CHILD_NAMES as $name) {
+
             if (($child = $this->$name) !== null) {
+
                 if (\is_array($child)) {
                     if(!isset($child[0])) {
                         continue;
                     }
                     $child = $child[0];
                 }
+
                 if ($child instanceof Node) {
                     return $child->getFullStart();
-                } elseif ($child instanceof Token) {
+                }
+
+                if ($child instanceof Token) {
                     return $child->fullStart;
                 }
+
                 throw new \Exception("Unknown type in AST: " . \gettype($child));
             }
         };
 
-        throw new \Exception("Unknown type in AST: " . \gettype($child));
+        throw new \RuntimeException("Could not resolve full start position");
     }
 
     /**
@@ -429,7 +437,7 @@ abstract class Node implements \JsonSerializable {
     /**
      * Searches descendants to find a Node at the given position.
      *
-     * @param $pos
+     * @param int $pos
      * @return Node
      */
     public function getDescendantNodeAtPosition(int $pos) {

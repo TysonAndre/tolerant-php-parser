@@ -48,6 +48,7 @@ use Microsoft\PhpParser\Node\Expression\{
     Variable,
     YieldExpression
 };
+use Microsoft\PhpParser\Node\FunctionHeader;
 use Microsoft\PhpParser\Node\StaticVariableDeclaration;
 use Microsoft\PhpParser\Node\ClassConstDeclaration;
 use Microsoft\PhpParser\Node\DeclareDirective;
@@ -183,7 +184,7 @@ class Parser {
      * with that ParseContext is reached. Additionally abort parsing when an element is reached
      * that is invalid in the current context, but valid in an enclosing context. If an element
      * is invalid in both current and enclosing contexts, generate a SkippedToken, and continue.
-     * @param $parentNode
+     * @param Node $parentNode
      * @param int $listParseContext
      * @return array
      */
@@ -1028,7 +1029,7 @@ class Parser {
                         $expression->children[] = $this->parseExpression($expression);
                     }
                     $expression->children[] = $this->eat1(TokenKind::CloseBraceToken);
-                    continue;
+                    break;
                 case $startQuoteKind = $expression->startQuote->kind:
                 case TokenKind::EndOfFileToken:
                 case TokenKind::HeredocEnd:
@@ -1036,11 +1037,11 @@ class Parser {
                     return $expression;
                 case TokenKind::VariableName:
                     $expression->children[] = $this->parseTemplateStringExpression($expression);
-                    continue;
+                    break;
                 default:
                     $expression->children[] = $this->getCurrentToken();
                     $this->advanceToken();
-                    continue;
+                    break;
             }
         }
     }
@@ -1329,7 +1330,11 @@ class Parser {
         return null;
     }
 
+    /**
+     * @param MethodDeclaration|FunctionDeclaration|AnonymousFunctionCreationExpression $functionDeclaration
+     */
     private function parseFunctionType(Node $functionDeclaration, $canBeAbstract = false, $isAnonymous = false) {
+
         $functionDeclaration->functionKeyword = $this->eat1(TokenKind::FunctionKeyword);
         $functionDeclaration->byRefToken = $this->eatOptional1(TokenKind::AmpersandToken);
         $functionDeclaration->name = $isAnonymous
@@ -1420,13 +1425,15 @@ class Parser {
         $ifStatement->openParen = $this->eat1(TokenKind::OpenParenToken);
         $ifStatement->expression = $this->parseExpression($ifStatement);
         $ifStatement->closeParen = $this->eat1(TokenKind::CloseParenToken);
-        if ($this->checkToken(TokenKind::ColonToken)) {
+        $curTokenKind = $this->getCurrentToken()->kind;
+        if ($curTokenKind === TokenKind::ColonToken) {
             $ifStatement->colon = $this->eat1(TokenKind::ColonToken);
             $ifStatement->statements = $this->parseList($ifStatement, ParseContext::IfClause2Elements);
-        } else {
+        } else if ($curTokenKind !== TokenKind::ScriptSectionEndTag) {
+            // Fix #246 : properly parse `if (false) ?\>echoed text\<?php`
             $ifStatement->statements = $this->parseStatement($ifStatement);
         }
-        $ifStatement->elseIfClauses = array(); // TODO - should be some standard for empty arrays vs. null?
+        $ifStatement->elseIfClauses = []; // TODO - should be some standard for empty arrays vs. null?
         while ($this->checkToken(TokenKind::ElseIfKeyword)) {
             $ifStatement->elseIfClauses[] = $this->parseElseIfClause($ifStatement);
         }
@@ -1450,10 +1457,11 @@ class Parser {
         $elseIfClause->openParen = $this->eat1(TokenKind::OpenParenToken);
         $elseIfClause->expression = $this->parseExpression($elseIfClause);
         $elseIfClause->closeParen = $this->eat1(TokenKind::CloseParenToken);
-        if ($this->checkToken(TokenKind::ColonToken)) {
+        $curTokenKind = $this->getCurrentToken()->kind;
+        if ($curTokenKind === TokenKind::ColonToken) {
             $elseIfClause->colon = $this->eat1(TokenKind::ColonToken);
             $elseIfClause->statements = $this->parseList($elseIfClause, ParseContext::IfClause2Elements);
-        } else {
+        } elseif ($curTokenKind !== TokenKind::ScriptSectionEndTag) {
             $elseIfClause->statements = $this->parseStatement($elseIfClause);
         }
         return $elseIfClause;
@@ -1463,10 +1471,11 @@ class Parser {
         $elseClause = new ElseClauseNode();
         $elseClause->parent = $parentNode;
         $elseClause->elseKeyword = $this->eat1(TokenKind::ElseKeyword);
-        if ($this->checkToken(TokenKind::ColonToken)) {
+        $curTokenKind = $this->getCurrentToken()->kind;
+        if ($curTokenKind === TokenKind::ColonToken) {
             $elseClause->colon = $this->eat1(TokenKind::ColonToken);
             $elseClause->statements = $this->parseList($elseClause, ParseContext::IfClause2Elements);
-        } else {
+        } elseif ($curTokenKind !== TokenKind::ScriptSectionEndTag) {
             $elseClause->statements = $this->parseStatement($elseClause);
         }
         return $elseClause;
@@ -1519,7 +1528,7 @@ class Parser {
             $whileStatement->statements = $this->parseList($whileStatement, ParseContext::WhileStatementElements);
             $whileStatement->endWhile = $this->eat1(TokenKind::EndWhileKeyword);
             $whileStatement->semicolon = $this->eatSemicolonOrAbortStatement();
-        } else {
+        } elseif (!$this->checkToken(TokenKind::ScriptSectionEndTag)) {
             $whileStatement->statements = $this->parseStatement($whileStatement);
         }
         return $whileStatement;
@@ -1875,7 +1884,7 @@ class Parser {
         $rightOperand->parent = $binaryExpression;
         $binaryExpression->leftOperand = $leftOperand;
         $binaryExpression->operator = $operatorToken;
-        if (isset($byRefToken)) {
+        if ($binaryExpression instanceof AssignmentExpression && isset($byRefToken)) {
             $binaryExpression->byRef = $byRefToken;
         }
         $binaryExpression->rightOperand = $rightOperand;
@@ -1911,7 +1920,7 @@ class Parser {
             $forStatement->statements = $this->parseList($forStatement, ParseContext::ForStatementElements);
             $forStatement->endFor = $this->eat1(TokenKind::EndForKeyword);
             $forStatement->endForSemicolon = $this->eatSemicolonOrAbortStatement();
-        } else {
+        } elseif (!$this->checkToken(TokenKind::ScriptSectionEndTag)) {
             $forStatement->statements = $this->parseStatement($forStatement);
         }
         return $forStatement;
@@ -1932,7 +1941,7 @@ class Parser {
             $foreachStatement->statements = $this->parseList($foreachStatement, ParseContext::ForeachStatementElements);
             $foreachStatement->endForeach = $this->eat1(TokenKind::EndForEachKeyword);
             $foreachStatement->endForeachSemicolon = $this->eatSemicolonOrAbortStatement();
-        } else {
+        } elseif (!$this->checkToken(TokenKind::ScriptSectionEndTag)) {
             $foreachStatement->statements = $this->parseStatement($foreachStatement);
         }
         return $foreachStatement;
