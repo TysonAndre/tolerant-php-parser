@@ -4,6 +4,7 @@ php:
   - 7.0
   - 7.1
   - 7.2
+  - 7.3
 
 env:
   - TYPE=UNIT_TEST
@@ -30,13 +31,13 @@ before_script:
   - if [[ $STATIC_ANALYSIS = true ]]; then composer require phpstan/phpstan --no-update; fi
   - composer install
   - set -e # Stop on first error.
-  - phpenv config-rm xdebug.ini
+  - phpenv config-rm xdebug.ini || true
   - if find . -name "*.php" -path "./src/*" -path "./experiments/*" -path "./tools/*" -path "./syntax-visualizer/server/src/*" -exec php -l {} 2>&1 \; | grep "syntax error, unexpected"; then exit 1; fi
   - if find . -name "*.php" -path "./tests/*" -path "./validation/*" -maxdepth 0 --exec php -l {} 2>&1 \; | grep "syntax error, unexpected"; then exit 1; fi
 
 script:
   - composer validate
-  - if [[ $STATIC_ANALYSIS = true ]]; then ./vendor/bin/phpstan analyse src --level=2; fi
+  - if [[ $STATIC_ANALYSIS = true ]]; then ./vendor/bin/phpstan analyse; fi
   - |
     if [[ $TYPE = VALIDATION ]]; then
       ./vendor/bin/phpunit --testsuite validation

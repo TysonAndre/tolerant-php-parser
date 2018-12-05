@@ -571,6 +571,9 @@ class Parser {
 
                 case TokenKind::ScriptSectionEndTag:
                     return $this->parseInlineHtml($parentNode);
+
+                case TokenKind::UnsetKeyword:
+                    return $this->parseUnsetStatement($parentNode);
             }
 
             $expressionStatement = new ExpressionStatement();
@@ -942,8 +945,6 @@ class Parser {
             // intrinsic-construct
             case TokenKind::ListKeyword:
                 return $this->parseListIntrinsicExpression($parentNode);
-            case TokenKind::UnsetKeyword:
-                return $this->parseUnsetIntrinsicExpression($parentNode);
 
             // intrinsic-operator
             case TokenKind::EmptyKeyword:
@@ -1230,7 +1231,7 @@ class Parser {
                 $node->addElement($delimeterToken);
             }
             $token = $this->getCurrentToken();
-            // TODO ERROR CASE - no delimeter, but a param follows
+            // TODO ERROR CASE - no delimiter, but a param follows
         } while ($delimeterToken !== null);
 
 
@@ -2204,6 +2205,19 @@ class Parser {
         return $expressionStatement;
     }
 
+    private function parseUnsetStatement($parentNode) {
+        $expressionStatement = new ExpressionStatement();
+
+        // TODO: Could flatten into UnsetStatement instead?
+        $unsetExpression = $this->parseUnsetIntrinsicExpression($expressionStatement);
+
+        $expressionStatement->parent = $parentNode;
+        $expressionStatement->expression = $unsetExpression;
+        $expressionStatement->semicolon = $this->eatSemicolonOrAbortStatement();
+
+        return $expressionStatement;
+    }
+
     private function parseListIntrinsicExpression($parentNode) {
         $listExpression = new ListIntrinsicExpression();
         $listExpression->parent = $parentNode;
@@ -2440,7 +2454,7 @@ class Parser {
             return $expression;
         }
         if ($tokenKind === TokenKind::ColonColonToken) {
-            $expression = $this->parseScopedPropertyAccessExpression($expression);
+            $expression = $this->parseScopedPropertyAccessExpression($expression, null);
             return $this->parsePostfixExpressionRest($expression);
         }
 
@@ -2588,12 +2602,18 @@ class Parser {
         return $memberAccessExpression;
     }
 
-    private function parseScopedPropertyAccessExpression($expression):ScopedPropertyAccessExpression {
+    /**
+     * @param Node|null $expression
+     * @param Node|null $fallbackParentNode (Workaround for the invalid AST `use TraitName::foo as ::x`)
+     */
+    private function parseScopedPropertyAccessExpression($expression, $fallbackParentNode): ScopedPropertyAccessExpression {
         $scopedPropertyAccessExpression = new ScopedPropertyAccessExpression();
-        $scopedPropertyAccessExpression->parent = $expression->parent;
-        $expression->parent = $scopedPropertyAccessExpression;
+        $scopedPropertyAccessExpression->parent = $expression->parent ?? $fallbackParentNode;
+        if ($expression instanceof Node) {
+            $expression->parent = $scopedPropertyAccessExpression;
+            $scopedPropertyAccessExpression->scopeResolutionQualifier = $expression; // TODO ensure always a Node
+        }
 
-        $scopedPropertyAccessExpression->scopeResolutionQualifier = $expression; // TODO ensure always a Node
         $scopedPropertyAccessExpression->doubleColon = $this->eat1(TokenKind::ColonColonToken);
         $scopedPropertyAccessExpression->memberName = $this->parseMemberName($scopedPropertyAccessExpression);
 
@@ -3030,7 +3050,7 @@ class Parser {
     private function parseQualifiedNameOrScopedPropertyAccessExpression($parentNode) {
         $qualifiedNameOrScopedProperty = $this->parseQualifiedName($parentNode);
         if ($this->getCurrentToken()->kind === TokenKind::ColonColonToken) {
-            $qualifiedNameOrScopedProperty = $this->parseScopedPropertyAccessExpression($qualifiedNameOrScopedProperty);
+            $qualifiedNameOrScopedProperty = $this->parseScopedPropertyAccessExpression($qualifiedNameOrScopedProperty, $parentNode);
         }
         return $qualifiedNameOrScopedProperty;
     }
