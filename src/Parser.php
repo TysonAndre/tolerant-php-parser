@@ -48,7 +48,6 @@ use Microsoft\PhpParser\Node\Expression\{
     Variable,
     YieldExpression
 };
-use Microsoft\PhpParser\Node\FunctionHeader;
 use Microsoft\PhpParser\Node\StaticVariableDeclaration;
 use Microsoft\PhpParser\Node\ClassConstDeclaration;
 use Microsoft\PhpParser\Node\DeclareDirective;
@@ -596,6 +595,12 @@ class Parser {
                 case TokenKind::FunctionKeyword:
                     return $this->parseMethodDeclaration($parentNode, $modifiers);
 
+                case TokenKind::QuestionToken:
+                    return $this->parseRemainingPropertyDeclarationOrMissingMemberDeclaration(
+                        $parentNode,
+                        $modifiers,
+                        $this->eat1(TokenKind::QuestionToken)
+                    );
                 case TokenKind::VariableName:
                     return $this->parsePropertyDeclaration($parentNode, $modifiers);
 
@@ -603,10 +608,7 @@ class Parser {
                     return $this->parseTraitUseClause($parentNode);
 
                 default:
-                    $missingClassMemberDeclaration = new MissingMemberDeclaration();
-                    $missingClassMemberDeclaration->parent = $parentNode;
-                    $missingClassMemberDeclaration->modifiers = $modifiers;
-                    return $missingClassMemberDeclaration;
+                    return $this->parseRemainingPropertyDeclarationOrMissingMemberDeclaration($parentNode, $modifiers);
             }
         };
     }
@@ -1348,7 +1350,7 @@ class Parser {
 
         if ($isAnonymous && isset($functionDeclaration->name)) {
             // Anonymous functions should not have names
-            $functionDeclaration->name = new SkippedToken($functionDeclaration->name); // TODO instaed handle this during post-walk
+            $functionDeclaration->name = new SkippedToken($functionDeclaration->name); // TODO instead handle this during post-walk
         }
 
         $functionDeclaration->openParen = $this->eat1(TokenKind::OpenParenToken);
@@ -1735,6 +1737,7 @@ class Parser {
                 case TokenKind::CaretEqualsToken:
                 case TokenKind::BarEqualsToken:
                 case TokenKind::InstanceOfKeyword:
+                case TokenKind::QuestionQuestionEqualsToken:
                     // Workarounds for https://github.com/Microsoft/tolerant-php-parser/issues/19#issue-201714377
                     // Parse `!$a = $b` as `!($a = $b)` - PHP constrains the Left Hand Side of an assignment to a variable. A unary operator (`@`, `!`, etc.) is not a variable.
                     // Instanceof has similar constraints for the LHS.
@@ -1809,6 +1812,7 @@ class Parser {
             TokenKind::AmpersandEqualsToken => [9, Associativity::Right],
             TokenKind::CaretEqualsToken => [9, Associativity::Right],
             TokenKind::BarEqualsToken => [9, Associativity::Right],
+            TokenKind::QuestionQuestionEqualsToken => [9, Associativity::Right],
 
             // TODO conditional-expression (L)
             TokenKind::QuestionToken => [10, Associativity::Left],
@@ -1838,13 +1842,13 @@ class Parser {
             TokenKind::LessThanGreaterThanToken => [17, Associativity::None],
             TokenKind::EqualsEqualsEqualsToken => [17, Associativity::None],
             TokenKind::ExclamationEqualsEqualsToken => [17, Associativity::None],
+            TokenKind::LessThanEqualsGreaterThanToken => [17, Associativity::None],
 
             // relational-expression (X)
             TokenKind::LessThanToken => [18, Associativity::None],
             TokenKind::GreaterThanToken => [18, Associativity::None],
             TokenKind::LessThanEqualsToken => [18, Associativity::None],
             TokenKind::GreaterThanEqualsToken => [18, Associativity::None],
-            TokenKind::LessThanEqualsGreaterThanToken => [18, Associativity::None],
 
             // shift-expression (L)
             TokenKind::LessThanLessThanToken => [19, Associativity::Left],
@@ -1877,8 +1881,34 @@ class Parser {
         return self::UNKNOWN_PRECEDENCE_AND_ASSOCIATIVITY;
     }
 
+    /**
+     * @internal Do not use outside this class, this may be changed or removed.
+     */
+    const KNOWN_ASSIGNMENT_TOKEN_SET = [
+        TokenKind::AsteriskAsteriskEqualsToken => true,
+        TokenKind::AsteriskEqualsToken => true,
+        TokenKind::SlashEqualsToken => true,
+        TokenKind::PercentEqualsToken => true,
+        TokenKind::PlusEqualsToken => true,
+        TokenKind::MinusEqualsToken => true,
+        TokenKind::DotEqualsToken => true,
+        TokenKind::LessThanLessThanEqualsToken => true,
+        TokenKind::GreaterThanGreaterThanEqualsToken => true,
+        TokenKind::AmpersandEqualsToken => true,
+        TokenKind::CaretEqualsToken => true,
+        TokenKind::BarEqualsToken => true,
+        TokenKind::QuestionQuestionEqualsToken => true,
+        // InstanceOf has other remaining issues, but this heuristic is an improvement for many common cases such as `$x && $y = $z`
+    ];
+
     private function makeBinaryExpression($leftOperand, $operatorToken, $byRefToken, $rightOperand, $parentNode) {
         $assignmentExpression = $operatorToken->kind === TokenKind::EqualsToken;
+        if ($assignmentExpression || \array_key_exists($operatorToken->kind, self::KNOWN_ASSIGNMENT_TOKEN_SET)) {
+            if ($leftOperand instanceof BinaryExpression && !\array_key_exists($leftOperand->operator->kind, self::KNOWN_ASSIGNMENT_TOKEN_SET)) {
+                // Handle cases without parenthesis, such as $x ** $y === $z, as $x ** ($y === $z)
+                return $this->shiftBinaryOperands($leftOperand, $operatorToken, $byRefToken, $rightOperand, $parentNode);
+            }
+        }
         $binaryExpression = $assignmentExpression ? new AssignmentExpression() : new BinaryExpression();
         $binaryExpression->parent = $parentNode;
         $leftOperand->parent = $binaryExpression;
@@ -1890,6 +1920,25 @@ class Parser {
         }
         $binaryExpression->rightOperand = $rightOperand;
         return $binaryExpression;
+    }
+
+    private function shiftBinaryOperands(BinaryExpression $leftOperand, $operatorToken, $byRefToken, $rightOperand, $parentNode) {
+        $inner = $this->makeBinaryExpression(
+            $leftOperand->rightOperand,
+            $operatorToken,
+            $byRefToken,
+            $rightOperand,
+            $parentNode
+        );
+        $outer = $this->makeBinaryExpression(
+            $leftOperand->leftOperand,
+            $leftOperand->operator,
+            null,
+            $inner,
+            $parentNode
+        );
+        $inner->parent = $outer;
+        return $outer;
     }
 
     private function parseDoStatement($parentNode) {
@@ -2721,11 +2770,39 @@ class Parser {
         return $classConstDeclaration;
     }
 
-    private function parsePropertyDeclaration($parentNode, $modifiers) {
+    /**
+     * @param Node $parentNode
+     * @param Token[] $modifiers
+     * @param Token|null $questionToken
+     */
+    private function parseRemainingPropertyDeclarationOrMissingMemberDeclaration($parentNode, $modifiers, $questionToken = null)
+    {
+        $typeDeclaration = $this->tryParseParameterTypeDeclaration(null);
+        if ($questionToken !== null && $typeDeclaration === null) {
+            $typeDeclaration = new MissingToken(TokenKind::PropertyType, $this->getCurrentToken()->fullStart);
+        }
+        if ($this->getCurrentToken()->kind !== TokenKind::VariableName) {
+            return $this->makeMissingMemberDeclaration($parentNode, $modifiers, $questionToken, $typeDeclaration);
+        }
+        return $this->parsePropertyDeclaration($parentNode, $modifiers, $questionToken, $typeDeclaration);
+    }
+
+    /**
+     * @param Node $parentNode
+     * @param Token[] $modifiers
+     * @param Token|null $questionToken
+     * @param QualifiedName|Token|null $typeDeclaration
+     */
+    private function parsePropertyDeclaration($parentNode, $modifiers, $questionToken = null, $typeDeclaration = null) {
         $propertyDeclaration = new PropertyDeclaration();
         $propertyDeclaration->parent = $parentNode;
 
         $propertyDeclaration->modifiers = $modifiers;
+        $propertyDeclaration->questionToken = $questionToken;  //
+        $propertyDeclaration->typeDeclaration = $typeDeclaration;
+        if ($typeDeclaration instanceof Node) {
+            $typeDeclaration->parent = $propertyDeclaration;
+        }
         $propertyDeclaration->propertyElements = $this->parseExpressionList($propertyDeclaration);
         $propertyDeclaration->semicolon = $this->eat1(TokenKind::SemicolonToken);
 
@@ -2979,6 +3056,12 @@ class Parser {
                 case TokenKind::FunctionKeyword:
                     return $this->parseMethodDeclaration($parentNode, $modifiers);
 
+                case TokenKind::QuestionToken:
+                    return $this->parseRemainingPropertyDeclarationOrMissingMemberDeclaration(
+                        $parentNode,
+                        $modifiers,
+                        $this->eat1(TokenKind::QuestionToken)
+                    );
                 case TokenKind::VariableName:
                     return $this->parsePropertyDeclaration($parentNode, $modifiers);
 
@@ -2986,12 +3069,27 @@ class Parser {
                     return $this->parseTraitUseClause($parentNode);
 
                 default:
-                    $missingTraitMemberDeclaration = new MissingMemberDeclaration();
-                    $missingTraitMemberDeclaration->parent = $parentNode;
-                    $missingTraitMemberDeclaration->modifiers = $modifiers;
-                    return $missingTraitMemberDeclaration;
+                    return $this->parseRemainingPropertyDeclarationOrMissingMemberDeclaration($parentNode, $modifiers);
             }
         };
+    }
+
+    /**
+     * @param Node $parentNode
+     * @param Token[] $modifiers
+     * @param Token $questionToken
+     * @param QualifiedName|Token|null $typeDeclaration
+     */
+    private function makeMissingMemberDeclaration($parentNode, $modifiers, $questionToken = null, $typeDeclaration = null) {
+        $missingTraitMemberDeclaration = new MissingMemberDeclaration();
+        $missingTraitMemberDeclaration->parent = $parentNode;
+        $missingTraitMemberDeclaration->modifiers = $modifiers;
+        $missingTraitMemberDeclaration->questionToken = $questionToken;
+        $missingTraitMemberDeclaration->typeDeclaration = $typeDeclaration;
+        if ($typeDeclaration instanceof Node) {
+            $typeDeclaration->parent = $missingTraitMemberDeclaration;
+        }
+        return $missingTraitMemberDeclaration;
     }
 
     private function parseTraitUseClause($parentNode) {

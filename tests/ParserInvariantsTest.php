@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 use Microsoft\PhpParser\TokenKind;
 
 class ParserInvariantsTest extends LexerInvariantsTest {
-    const FILENAME_PATTERN = __dir__ . "/cases/{parser,}/*.php";
+    const FILENAME_PATTERN = __dir__ . "/cases/{parser,parser74,}/*.php";
 
     public static function sourceFileNodeProvider() {
         $testFiles = array();
@@ -96,6 +96,10 @@ class ParserInvariantsTest extends LexerInvariantsTest {
     public function testParentOfNodeHasSameChildNode($filename, Node $sourceFileNode) {
         foreach ($sourceFileNode->getDescendantNodesAndTokens() as $child) {
             if ($child instanceof Node) {
+                if (!$child->parent) {
+                    $this->fail("Missing parent for " . var_export($child, true));
+                }
+
                 $this->assertContains(
                     $child, $child->parent->getChildNodesAndTokens(),
                     "Invariant: Parent of Node contains same child node."

@@ -146,6 +146,7 @@ class TokenKind {
     const AtSymbolToken = 259;
     const BacktickToken = 260;
     const QuestionToken = 261;
+    const QuestionQuestionEqualsToken = 262;
 
     const DecimalLiteralToken = 301;
     const OctalLiteralToken = 302;
@@ -185,6 +186,7 @@ class TokenKind {
     const RealReservedWord = 335;
     const ReturnType = 336;
     const InlineHtml = 337;
+    const PropertyType = 338;
 
 //    const DollarOpenCurly = 339;
     const EncapsedAndWhitespace = 400;

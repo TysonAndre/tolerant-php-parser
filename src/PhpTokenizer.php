@@ -6,6 +6,10 @@
 
 namespace Microsoft\PhpParser;
 
+// If this predates PHP 7.4, T_COALESCE_EQUAL is unavailable.
+// The replacement value is arbitrary - it just has to be different from other values of token constants.
+define(__NAMESPACE__ . '\T_COALESCE_EQUAL', defined('T_COALESCE_EQUAL') ? constant('T_COALESCE_EQUAL') : 'T_COALESCE_EQUAL');
+
 /**
  * Tokenizes content using PHP's built-in `token_get_all`, and converts to "lightweight" Token representation.
  *
@@ -83,16 +87,16 @@ class PhpTokenizer implements TokenStreamProviderInterface {
             }
 
             switch ($tokenKind) {
-                case T_OPEN_TAG:
+                case \T_OPEN_TAG:
                     $arr[] = new Token(TokenKind::ScriptSectionStartTag, $fullStart, $start, $pos-$fullStart);
                     $start = $fullStart = $pos;
                     break;
 
-                case T_WHITESPACE:
+                case \T_WHITESPACE:
                     $start += $strlen;
                     break;
 
-                case T_STRING:
+                case \T_STRING:
                     $name = \strtolower($token[1]);
                     if (isset(TokenStringMaps::RESERVED_WORDS[$name])) {
                         $newTokenKind = TokenStringMaps::RESERVED_WORDS[$name];
@@ -102,7 +106,7 @@ class PhpTokenizer implements TokenStreamProviderInterface {
                     }
 
                 default:
-                    if (($tokenKind === T_COMMENT || $tokenKind === T_DOC_COMMENT) && $treatCommentsAsTrivia) {
+                    if (($tokenKind === \T_COMMENT || $tokenKind === \T_DOC_COMMENT) && $treatCommentsAsTrivia) {
                         $start += $strlen;
                         break;
                     }
@@ -249,6 +253,7 @@ class PhpTokenizer implements TokenStreamProviderInterface {
         T_XOR_EQUAL => TokenKind::CaretEqualsToken,
         T_OR_EQUAL => TokenKind::BarEqualsToken,
         "," => TokenKind::CommaToken,
+        namespace\T_COALESCE_EQUAL => TokenKind::QuestionQuestionEqualsToken,
         T_COALESCE => TokenKind::QuestionQuestionToken,
         T_SPACESHIP => TokenKind::LessThanEqualsGreaterThanToken,
         T_ELLIPSIS => TokenKind::DotDotDotToken,
