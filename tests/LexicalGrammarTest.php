@@ -11,22 +11,21 @@ use PHPUnit\Framework\TestResult;
 use PHPUnit\Framework\BaseTestListener;
 use PHPUnit\Framework\AssertionFailedError;
 
+require_once __DIR__ . '/CallbackTestListener.php';
+
 class LexicalGrammarTest extends TestCase {
     const FILE_PATTERN = __DIR__ . "/cases/lexical/*";
     public function run(TestResult $result = null) : TestResult {
         if (!isset($GLOBALS["GIT_CHECKOUT_LEXER"])) {
             $GLOBALS["GIT_CHECKOUT_LEXER"] = true;
-            exec("git -C " . dirname(self::FILE_PATTERN) . " checkout *.php.tokens");
+            // exec("git -C " . dirname(self::FILE_PATTERN) . " checkout *.php.tokens");
         }
 
-        $result->addListener(new class() extends BaseTestListener {
-            function addFailure(Test $test, AssertionFailedError $e, $time) {
-                if (isset($test->expectedTokensFile) && isset($test->tokens)) {
-                    file_put_contents($test->expectedTokensFile, str_replace("\r\n", "\n", $test->tokens));
-                }
-                parent::addFailure($test, $e, $time);
+        $result->addListener(new CallbackTestListener(function (Test $test) {
+            if (isset($test->expectedTokensFile) && isset($test->tokens)) {
+                file_put_contents($test->expectedTokensFile, str_replace("\r\n", "\n", $test->tokens));
             }
-        });
+        }));
 
         $result = parent::run($result);
         return $result;
@@ -40,7 +39,7 @@ class LexicalGrammarTest extends TestCase {
         $fileContents = file_get_contents($testCaseFile);
         if (!file_exists($expectedTokensFile)) {
             file_put_contents($expectedTokensFile, $fileContents);
-            exec("git add " . $expectedTokensFile);
+            // exec("git add " . $expectedTokensFile);
         }
 
         $expectedTokens = str_replace("\r\n", "\n", file_get_contents($expectedTokensFile));

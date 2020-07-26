@@ -8,27 +8,27 @@ use Microsoft\PhpParser\DiagnosticsProvider;
 use PHPUnit\Framework\Test;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\TestResult;
-use PHPUnit\Framework\BaseTestListener;
+use PHPUnit\Framework\TestListener;
+use PHPUnit\Framework\TestListenerDefaultImplementation;
 use PHPUnit\Framework\AssertionFailedError;
+
+require_once __DIR__ . '/CallbackTestListener.php';
 
 class ParserGrammarTest extends TestCase {
     public function run(TestResult $result = null) : TestResult {
         if (!isset($GLOBALS["GIT_CHECKOUT_PARSER"])) {
             $GLOBALS["GIT_CHECKOUT_PARSER"] = true;
-            exec("git -C " . dirname(self::FILE_PATTERN) . " checkout *.php.tree *.php.diag");
+            // exec("git -C " . dirname(self::FILE_PATTERN) . " checkout *.php.tree *.php.diag");
         }
 
-        $result->addListener(new class() extends BaseTestListener {
-            function addFailure(Test $test, AssertionFailedError $e, $time) {
-                if (isset($test->expectedTokensFile) && isset($test->tokens)) {
-                    file_put_contents($test->expectedTokensFile, str_replace("\r\n", "\n", $test->tokens));
-                }
-                if (isset($test->expectedDiagnosticsFile) && isset($test->diagnostics)) {
-                    file_put_contents($test->expectedDiagnosticsFile, str_replace("\r\n", "\n", $test->diagnostics));
-                }
-                parent::addFailure($test, $e, $time);
+        $result->addListener(new CallbackTestListener(function (Test $test) {
+            if (isset($test->expectedTokensFile) && isset($test->tokens)) {
+                file_put_contents($test->expectedTokensFile, str_replace("\r\n", "\n", $test->tokens));
             }
-        });
+            if (isset($test->expectedDiagnosticsFile) && isset($test->diagnostics)) {
+                file_put_contents($test->expectedDiagnosticsFile, str_replace("\r\n", "\n", $test->diagnostics));
+            }
+        }));
 
         $result = parent::run($result);
         return $result;
@@ -44,12 +44,12 @@ class ParserGrammarTest extends TestCase {
         $fileContents = file_get_contents($testCaseFile);
         if (!file_exists($expectedTokensFile)) {
             file_put_contents($expectedTokensFile, $fileContents);
-            exec("git add " . $expectedTokensFile);
+            // exec("git add " . $expectedTokensFile);
         }
 
         if (!file_exists($expectedDiagnosticsFile)) {
             file_put_contents($expectedDiagnosticsFile, $fileContents);
-            exec("git add " . $expectedDiagnosticsFile);
+            // exec("git add " . $expectedDiagnosticsFile);
         }
 
         $parser = new \Microsoft\PhpParser\Parser();
