@@ -48,7 +48,6 @@ use Microsoft\PhpParser\Node\Expression\{
     ThrowExpression,
     UnaryExpression,
     UnaryOpExpression,
-    UnsetIntrinsicExpression,
     Variable,
     YieldExpression
 };
@@ -103,6 +102,7 @@ use Microsoft\PhpParser\Node\Statement\{
     SwitchStatementNode,
     TraitDeclaration,
     TryStatement,
+    UnsetStatement,
     WhileStatement
 };
 use Microsoft\PhpParser\Node\TraitMembers;
@@ -2604,20 +2604,6 @@ class Parser {
         return $echoStatement;
     }
 
-    /** @return ExpressionStatement */
-    private function parseUnsetStatement($parentNode) {
-        $expressionStatement = new ExpressionStatement();
-
-        // FIXME: flatten into UnsetStatement instead?
-        $unsetExpression = $this->parseUnsetIntrinsicExpression($expressionStatement);
-
-        $expressionStatement->parent = $parentNode;
-        $expressionStatement->expression = $unsetExpression;
-        $expressionStatement->semicolon = $this->eatSemicolonOrAbortStatement();
-
-        return $expressionStatement;
-    }
-
     private function parseListIntrinsicExpression($parentNode) {
         $listExpression = new ListIntrinsicExpression();
         $listExpression->parent = $parentNode;
@@ -2682,16 +2668,16 @@ class Parser {
         );
     }
 
-    private function parseUnsetIntrinsicExpression($parentNode) {
-        $unsetExpression = new UnsetIntrinsicExpression();
-        $unsetExpression->parent = $parentNode;
+    private function parseUnsetStatement($parentNode) {
+        $unsetStatement = new UnsetStatement();
+        $unsetStatement->parent = $parentNode;
 
-        $unsetExpression->unsetKeyword = $this->eat1(TokenKind::UnsetKeyword);
-        $unsetExpression->openParen = $this->eat1(TokenKind::OpenParenToken);
-        $unsetExpression->expressions = $this->parseExpressionList($unsetExpression);
-        $unsetExpression->closeParen = $this->eat1(TokenKind::CloseParenToken);
-
-        return $unsetExpression;
+        $unsetStatement->unsetKeyword = $this->eat1(TokenKind::UnsetKeyword);
+        $unsetStatement->openParen = $this->eat1(TokenKind::OpenParenToken);
+        $unsetStatement->expressions = $this->parseExpressionList($unsetStatement);
+        $unsetStatement->closeParen = $this->eat1(TokenKind::CloseParenToken);
+        $unsetStatement->semicolon = $this->eatSemicolonOrAbortStatement();
+        return $unsetStatement;
     }
 
     private function parseArrayCreationExpression($parentNode) {
